@@ -28,15 +28,6 @@ void prepareDB() {
     db.close();
 }
 
-int delimIndex(const QByteArray& s, int from = 0) {
-    for (int i=from; i<s.length(); ++i) {
-        if (s[i]==' ' || s[i]=='\t' || s[i]=='\n')
-            return i;
-    }
-    return -1;
-}
-
-
 inline void addString(QHash<QString,int>& counts, QString s) {
     if (counts.contains(s))
         counts[s]++;
@@ -51,7 +42,6 @@ void doFile(const QString& filename) {
     file.open(QIODevice::ReadOnly | QIODevice::Text);
 
     QString buf = "";
-    QList<QString> anslist;
     QHash<QString,int> counts;
 
     while(!file.atEnd()) {
@@ -61,29 +51,19 @@ void doFile(const QString& filename) {
         QStringList lst = buf.split(QRegExp("[\t ' ' '\n']"));
         int len = lst.length();
         QString newbuf = lst.last();
-        if (! newbuf.isEmpty()) {
+        if (!newbuf.isEmpty())
             len--;
-        }
         for (int i=0; i<len; ++i) {
             QString s = lst.at(i);
-            if (!s.isEmpty()) {
-                anslist.append(s);
+            if (!s.isEmpty())
                 addString(counts, s);
-            }
         }
         buf = newbuf;
     }
     file.close();
 
-    if (buf.length() != 0) {
-        anslist.append(buf);
+    if (buf.length() != 0)
         addString(counts, buf);
-    }
-    /*
-    qDebug() << "All words";
-    foreach(const QString& b, anslist)
-        qDebug() << b;
-    */
 
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(DB_FILE_NAME);
@@ -97,19 +77,23 @@ void doFile(const QString& filename) {
         qDebug() << "last error = " << query.lastError();
     }
 
-    QStringList querylist;
+    if (counts.count() > 0) {
+        QStringList querylist;
 
-    QString pattern("(\"%1\",\"%2\",%3)");
-    cout << "Counts:\n";
-    foreach(const QString& word, counts.keys()) {
-        int count = counts[word];
-        cout << setw(20) << word.toStdString() << ": " << count << "\n";
-        querylist << pattern.arg(filename).arg(word).arg(count);
-    }
-    QString insertQuery = "INSERT INTO files VALUES " + querylist.join(",");
-    if (!query.exec(insertQuery) ) {
-        qDebug() << query.lastError();
-        qFatal("Can't insert values to database\n");
+        QString pattern("(\"%1\",\"%2\",%3)");
+        cout << "Counts:\n";
+        foreach(const QString& word, counts.keys()) {
+            int count = counts[word];
+            cout << setw(20) << word.toStdString() << ": " << count << "\n";
+            querylist << pattern.arg(filename).arg(word).arg(count);
+        }
+        QString insertQuery = "INSERT INTO files VALUES " + querylist.join(",");
+        if (!query.exec(insertQuery) ) {
+            qDebug() << query.lastError();
+            qFatal("Can't insert values to database\n");
+        }
+    } else {
+        cout << "No words found. Don't insert anything\n";
     }
     db.close();
 }
@@ -119,6 +103,7 @@ void listDataBase() {
     db.setDatabaseName(DB_FILE_NAME);
     db.open();
     QSqlQuery query(db);
+
     if (!query.exec("select * from files") ) {
         qDebug() << query.lastError();
         qFatal("Error while listing database");
