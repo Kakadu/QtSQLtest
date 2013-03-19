@@ -14,7 +14,7 @@
 using namespace std;
 
 const QString DB_FILE_NAME = "my.db.sqlite";
-const int BUF_SIZE = 10;
+const int BUF_SIZE = 1000;
 
 void prepareDB() {
     cout << "Prepare DB\n";
